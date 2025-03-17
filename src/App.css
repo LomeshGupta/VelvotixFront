@@ -7,6 +7,18 @@
   pointer-events: none;
 }
 
+.toast-container .Toastify__toast {
+  background: rgba(255, 255, 255, 0.2); /* Transparent white */
+  backdrop-filter: blur(8px); /* Blur effect */
+  border-radius: 10px; /* Rounded corners */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Light shadow for depth */
+  padding: 10px;
+}
+
+.toast-container .Toastify__toast-body {
+  color: #fff; /* Text color */
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
     animation: App-logo-spin infinite 20s linear;
