@@ -26,86 +26,111 @@ const isTokenExpired = () => {
   return new Date().getTime() > userData.expirationTime;
 };
 
+const getAccessToken = async () => {
+  const tenantId = process.env.REACT_APP_TENANT_ID;
+  const clientId = process.env.REACT_APP_CLIENT_ID;
+  const clientSecret = process.env.REACT_APP_CLIENT_SECRET;
+
+  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+
+  const params = new URLSearchParams();
+  params.append("grant_type", "client_credentials");
+  params.append("client_id", clientId);
+  params.append("client_secret", clientSecret);
+  params.append(
+    "scope",
+    "https://api.businesscentral.dynamics.com/.default"
+  );
+
+  const response = await axios.post(tokenUrl, params, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+  });
+
+  return response.data.access_token;
+};
+
 // Function to clear the user data when token is expired
 const clearUserData = () => {
   localStorage.removeItem('userData');
 };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-  
-    const url = `http://localhost:7048/BC250/ODataV4/Company('CRONUS%20UK%20Ltd.')/Codexspell_users?$filter=User_Name eq '${username}'`;
-    const credentials = `Lomesh:Bittu@1998`;
-    const base64Credentials = btoa(credentials);
-  
-    try {
-      const response = await axios.get(url, {
-        headers: {
-          Authorization: `Basic ${base64Credentials}`,
-        },
-        withCredentials: true,
-      });
-  
-      const user = response.data.value[0];
-      const base64Password = user.Password;
-      const decodedPassword = atob(base64Password);
-  
-      if (decodedPassword === password) {
-        // Get the current system location and device
-        const location = await getLocation();
-        const device = getDeviceInfo();
-  
-        // Prepare log data
-        const logData = {
-          User_Name: username,
-          Time: new Date().toISOString(), // Current time in ISO format
-          Location: location,
-          Device: device,
-          Type: 'Login',
-          Success: true,
-        };
-  
-        // Post the login log to the server
-        await axios.post(
-          `http://localhost:7048/BC250/ODataV4/Company('CRONUS%20UK%20Ltd.')/Codexspell_loginlogs`,
-          logData,
-          {
-            headers: {
-              'Authorization': `Basic ${base64Credentials}`,
-              'Content-Type': 'application/json',
-            },
-            withCredentials: true,
-          }
-        );
-  
-        // Store user data and token in localStorage
-        const userData = {
-          ...user, // Store all user details
-          token: base64Credentials, // Store the token (You might want to change this if it's a JWT token or similar)
-          expirationTime: new Date().getTime() + 3600000, // Token expiration time (1 hour from now)
-        };
-  
-        localStorage.setItem('userData', JSON.stringify(userData));
-  
-        // Debugging: Check if navigate is being called
-        console.log('Navigating to home...');
-  
-        // Navigate to the home page
-        navigate("/");
-  
-        // Show success toast
-        toast.success("Login successful!");
-      } else {
-        toast.error("Invalid username or password.");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("An error occurred. Please try again.");
-    } finally {
-      setLoading(false);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    const accessToken = await getAccessToken();
+
+    const baseUrl = process.env.REACT_APP_BC_BASE_URL;
+    const environment = process.env.REACT_APP_BC_ENVIRONMENT;
+    const company = process.env.REACT_APP_BC_COMPANY;
+
+    const url = `${baseUrl}/v2.0/${environment}/ODataV4/Company('${company}')/Codexspell_users?$filter=User_Name eq '${username}'`;
+
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const user = response.data.value?.[0];
+    if (!user) {
+      toast.error("Invalid username or password");
+      return;
     }
-  };
+
+    const decodedPassword = atob(user.Password);
+
+    if (decodedPassword !== password) {
+      toast.error("Invalid username or password");
+      return;
+    }
+
+    // Get system info
+    const location = await getLocation();
+    const device = getDeviceInfo();
+
+    const logData = {
+      User_Name: username,
+      Time: new Date().toISOString(),
+      Location: location,
+      Device: device,
+      Type: "Login",
+      Success: true,
+    };
+
+    await axios.post(
+      `${baseUrl}/v2.0/${environment}/ODataV4/Company('${company}')/Codexspell_loginlogs`,
+      logData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    localStorage.setItem(
+      "userData",
+      JSON.stringify({
+        ...user,
+        token: accessToken,
+        expirationTime: Date.now() + 3600000,
+      })
+    );
+
+    navigate("/");
+    toast.success("Login successful!");
+  } catch (error) {
+    console.error(error);
+    toast.error("Authentication failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
   
   
   // Function to get the current location using Geolocation API

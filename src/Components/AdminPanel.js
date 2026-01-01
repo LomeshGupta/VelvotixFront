@@ -23,8 +23,6 @@ import ToolbarActionsSearch from "./ToolbarActionsSearch";
 import { toast } from "react-toastify";
 import logo from "../Assets/logo-upscae.png";
 
-import Home from "../Pages/Home";
-
 // Function to check if token has expired
 const isTokenExpired = () => {
   const userData = JSON.parse(localStorage.getItem("userData"));
@@ -139,13 +137,16 @@ DemoPageContent.propTypes = {
 };
 
 function DashboardLayoutAccount({ window, children }) {
-  const userData = JSON.parse(localStorage.getItem("userData"));
-  const [session, setSession] = React.useState({
-    user: {
-      name: userData.Full_Name,
-      email: userData.Email,
-    },
-  });
+  const userDataString = localStorage.getItem("userData");
+const userData = userDataString ? JSON.parse(userDataString) : {};
+
+const [session, setSession] = React.useState({
+  user: {
+    name: userData.Full_Name || "",
+    email: userData.Email || "",
+  },
+});
+
 
   const navigate = useNavigate(); // Using react-router's useNavigate hook
 
@@ -160,7 +161,7 @@ function DashboardLayoutAccount({ window, children }) {
         localStorage.removeItem("token");
         localStorage.removeItem("expirationTime");
 
-        navigate("/login"); // Navigate to login on sign out
+        navigate("/login");
         toast.success("Logout successful!");
       },
     };
@@ -169,16 +170,21 @@ function DashboardLayoutAccount({ window, children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Check if the user is authenticated
-    const userData = localStorage.getItem("userData");
-    if (userData && !isTokenExpired()) {
-      setIsAuthenticated(true);
+    const userDataString = localStorage.getItem("userData");
+  
+    // Parse userData safely
+    const userData = userDataString ? JSON.parse(userDataString) : null;
+  
+    if (!userData) {
+      clearUserData();
+      setIsAuthenticated(false);
+      navigate("/login", { replace: true });
     } else {
-      clearUserData(); // Clear user data if token is expired
-      setIsAuthenticated(false); // User is not authenticated
-      navigate("/login"); // Redirect to login page
+      setIsAuthenticated(true);
     }
   }, [navigate]);
+  
+  
 
   const demoWindow = window !== undefined ? window() : undefined;
 
