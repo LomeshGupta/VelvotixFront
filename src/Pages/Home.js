@@ -32,30 +32,44 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchSalesData = async () => {
       setLoading(true);
-      const url = `http://localhost:7048/BC250/ODataV4/Company('CRONUS%20UK%20Ltd.')/dashboard_sales?$top=10`;
-      const credentials = `Lomesh:Bittu@1998`;
-      const base64Credentials = btoa(credentials);
-      
+
       try {
+        const userData = JSON.parse(localStorage.getItem("userData"));
+
+        const tenant = process.env.REACT_APP_TENANT_ID;
+        const accessToken = userData?.token;
+        const baseUrl = process.env.REACT_APP_BC_BASE_URL;
+        const environment = process.env.REACT_APP_BC_ENVIRONMENT;
+        const company = process.env.REACT_APP_BC_COMPANY;
+
+        if (!accessToken) {
+          throw new Error("Access token not found");
+        }
+
+        const url = `${baseUrl}/v2.0/${tenant}/${environment}/ODataV4/Company('${company}')/lines?$top=10`;
+
         const response = await axios.get(url, {
           headers: {
-            Authorization: `Basic ${base64Credentials}`,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
-          withCredentials: true,
         });
+
         setSalesData(response.data.value);
       } catch (error) {
-        console.error("Error fetching sales data:", error);
+        console.error(
+          "Error fetching sales data:",
+          error.response?.data || error,
+        );
       } finally {
         setLoading(false);
       }
     };
-   
+
     fetchSalesData();
     const interval = setInterval(fetchSalesData, 1000);
     return () => clearInterval(interval);
   }, []);
-
 
   return (
     <Box sx={{ p: 5 }}>
@@ -69,7 +83,7 @@ const Dashboard = () => {
           color: "white",
         }}
       >
-        <Typography variant="h5">Welcome to CodexSpell</Typography>
+        <Typography variant="h5">Welcome to Velvotix</Typography>
         <Typography variant="body1" sx={{ my: 1 }}>
           Manage your product analytics & track real-time performance.
         </Typography>
@@ -104,9 +118,7 @@ const Dashboard = () => {
             <CardContent>
               <Typography variant="h6">Sales Overview</Typography>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={{
-                  
-                }}>
+                <LineChart data={{}}>
                   <XAxis dataKey="Month" />
                   <YAxis />
                   <Tooltip />
@@ -152,10 +164,10 @@ const Dashboard = () => {
             <TableBody>
               {salesData.map((order, index) => (
                 <TableRow key={index}>
-                  <TableCell>{order.DocumentNo_}</TableCell>
-                  <TableCell>{order.No_}</TableCell>
+                  <TableCell>{order.documentNo}</TableCell>
+                  <TableCell>{order.no}</TableCell>
                   <TableCell>{order.Status}</TableCell>
-                  <TableCell>{order.Quantity}</TableCell>
+                  <TableCell>{order.quantity}</TableCell>
                   <TableCell>{order.QuantityShipped}</TableCell>
                   <TableCell>{order.Amount}</TableCell>
                 </TableRow>

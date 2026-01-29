@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 const routes = [
   { path: "/login", name: "Login" },
   { path: "/", name: "Home" },
-  { path: "/orders", name: "Orders" },
+  { path: "/sales-orders", name: "Orders" },
   { path: "/profile", name: "Profile" },
   { path: "/settings", name: "Settings" },
 ];
@@ -44,9 +44,7 @@ function ToolbarActionsSearch() {
   };
 
   const filteredResults = searchTerm
-    ? routes.filter((route) =>
-        new RegExp(searchTerm, "i").test(route.name)
-      )
+    ? routes.filter((route) => new RegExp(searchTerm, "i").test(route.name))
     : [];
 
   return (
@@ -91,7 +89,10 @@ function ToolbarActionsSearch() {
             }}
           >
             {filteredResults.map((route) => (
-              <MenuItem key={route.path} onClick={() => handleSelect(route.path)}>
+              <MenuItem
+                key={route.path}
+                onClick={() => handleSelect(route.path)}
+              >
                 {route.name}
               </MenuItem>
             ))}

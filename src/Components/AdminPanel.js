@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import PropTypes from "prop-types";
+import PropTypes, { element } from "prop-types";
 import Box from "@mui/material/Box";
 import { useNavigate } from "react-router-dom"; // Using react-router-dom for navigation
 import Typography from "@mui/material/Typography";
@@ -10,18 +10,16 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import DescriptionIcon from "@mui/icons-material/Description";
 import LayersIcon from "@mui/icons-material/Layers";
 import { AppProvider } from "@toolpad/core/AppProvider";
-import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
-import TextField from "@mui/material/TextField";
-import IconButton from "@mui/material/IconButton";
-import SearchIcon from "@mui/icons-material/Search";
+import SalesOrdersList from "../Pages/SalesOrdersList";
+
 import { DashboardLayout, ThemeSwitcher } from "@toolpad/core/DashboardLayout";
-import CloudCircleIcon from "@mui/icons-material/CloudCircle";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Chip from "@mui/material/Chip";
 import ToolbarActionsSearch from "./ToolbarActionsSearch";
 import { toast } from "react-toastify";
 import logo from "../Assets/logo-upscae.png";
+import { Outlet } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { DemoProvider, useDemoRouter } from "@toolpad/core/internal";
 
 // Function to check if token has expired
 const isTokenExpired = () => {
@@ -43,7 +41,7 @@ function SidebarFooter({ mini }) {
     >
       {mini
         ? "©"
-        : `© ${new Date().getFullYear()} Made with love by CodexSpell`}
+        : `© ${new Date().getFullYear()} Made with love by Velvotix`}
     </Typography>
   );
 }
@@ -51,6 +49,13 @@ function SidebarFooter({ mini }) {
 SidebarFooter.propTypes = {
   mini: PropTypes.bool.isRequired,
 };
+
+const Router = [
+  {
+    pathname: "/sales-orders",
+    navigate: <SalesOrdersList />,
+  },
+];
 
 const NAVIGATION = [
   {
@@ -63,7 +68,7 @@ const NAVIGATION = [
     icon: <DashboardIcon />,
   },
   {
-    segment: "orders",
+    segment: "sales-orders",
     title: "Orders",
     icon: <ShoppingCartIcon />,
   },
@@ -114,7 +119,9 @@ const demoTheme = createTheme({
   },
 });
 
-function DemoPageContent({ pathname, children }) {
+function DemoPageContent() {
+  const location = useLocation();
+
   return (
     <Box
       sx={{
@@ -125,28 +132,27 @@ function DemoPageContent({ pathname, children }) {
         textAlign: "center",
       }}
     >
-      <Typography>Dashboard content for {pathname}</Typography>
-      {children} {/* Render the children passed via the route */}
+      <Typography>Dashboard content for {location.pathname}</Typography>
     </Box>
   );
 }
 
 DemoPageContent.propTypes = {
   pathname: PropTypes.string.isRequired,
-  children: PropTypes.node, // Accept children as a prop
 };
 
 function DashboardLayoutAccount({ window, children }) {
   const userDataString = localStorage.getItem("userData");
-const userData = userDataString ? JSON.parse(userDataString) : {};
+  const userData = userDataString ? JSON.parse(userDataString) : {};
+  const router = useDemoRouter("/page");
+  console.log(router);
 
-const [session, setSession] = React.useState({
-  user: {
-    name: userData.Full_Name || "",
-    email: userData.Email || "",
-  },
-});
-
+  const [session, setSession] = React.useState({
+    user: {
+      name: userData.Full_Name || "",
+      email: userData.Email || "",
+    },
+  });
 
   const navigate = useNavigate(); // Using react-router's useNavigate hook
 
@@ -171,10 +177,10 @@ const [session, setSession] = React.useState({
 
   useEffect(() => {
     const userDataString = localStorage.getItem("userData");
-  
+
     // Parse userData safely
     const userData = userDataString ? JSON.parse(userDataString) : null;
-  
+
     if (!userData) {
       clearUserData();
       setIsAuthenticated(false);
@@ -183,21 +189,22 @@ const [session, setSession] = React.useState({
       setIsAuthenticated(true);
     }
   }, [navigate]);
-  
-  
 
   const demoWindow = window !== undefined ? window() : undefined;
+
+  const routers = useDemoRouter("/");
 
   return (
     <AppProvider
       session={session}
       branding={{
-        logo: <img src={logo} alt="CodexSpell logo" />,
-        title: "CodeXSpell",
+        logo: <img src={logo} alt="Velvotix logo" />,
+        title: "Velvotix",
         homeUrl: "/",
       }}
       authentication={authentication}
       navigation={NAVIGATION}
+      // router={routers}
       theme={demoTheme}
       window={demoWindow}
     >
@@ -207,7 +214,8 @@ const [session, setSession] = React.useState({
           sidebarFooter: SidebarFooter,
         }}
       >
-        {children}
+        <Outlet />
+        {/* <handleClick path={routers.pathname} /> */}
       </DashboardLayout>
     </AppProvider>
   );

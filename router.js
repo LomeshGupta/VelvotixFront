@@ -1,20 +1,20 @@
-import DashboardPage from './pages';
-import OrdersPage from './pages/orders';
+import DashboardPage from "./pages";
+import OrdersPage from "./pages/orders";
 
 const router = createBrowserRouter([
   {
     Component: App,
     children: [
       {
-        path: '/',
+        path: "/",
         Component: Layout,
         children: [
           {
-            path: '',
+            path: "",
             Component: DashboardPage,
           },
           {
-            path: 'orders',
+            path: "Orders",
             Component: OrdersPage,
           },
         ],

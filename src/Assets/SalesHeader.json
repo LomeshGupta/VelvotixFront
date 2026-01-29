@@ -1,0 +1,65 @@
+{
+  "sections": [
+    {
+      "id": "general",
+      "title": "General",
+      "columns": 4,
+      "fields": [
+        { "name": "documentType", "label": "Document Type", "readOnly": true },
+        { "name": "no", "label": "Order No", "readOnly": true },
+        { "name": "status", "label": "Status", "readOnly": true },
+        { "name": "externalDocumentNo", "label": "External Document No" },
+        { "name": "orderDate", "label": "Order Date", "type": "date" },
+        { "name": "postingDate", "label": "Posting Date", "type": "date" },
+        { "name": "shipmentDate", "label": "Shipment Date", "type": "date" },
+        { "name": "yourReference", "label": "Your Reference" }
+      ]
+    },
+    {
+      "id": "customer",
+      "title": "Sell-to Customer",
+      "columns": 4,
+      "fields": [
+        { "name": "sellToCustomerNo", "label": "Customer No" },
+        { "name": "sellToCustomerName", "label": "Customer Name" },
+        { "name": "sellToContact", "label": "Contact" },
+        { "name": "sellToEMail", "label": "Email" },
+        { "name": "sellToAddress", "label": "Address" },
+        { "name": "sellToCity", "label": "City" },
+        { "name": "sellToPostCode", "label": "Post Code" },
+        { "name": "sellToCountryRegionCode", "label": "Country" }
+      ]
+    },
+    {
+      "id": "shipping",
+      "title": "Shipping",
+      "columns": 4,
+      "fields": [
+        { "name": "locationCode", "label": "Location Code" },
+        { "name": "shipmentMethodCode", "label": "Shipment Method" },
+        { "name": "shippingAgentCode", "label": "Shipping Agent" },
+        {
+          "name": "requestedDeliveryDate",
+          "label": "Requested Delivery Date",
+          "type": "date"
+        }
+      ]
+    },
+    {
+      "id": "payment",
+      "title": "Payment & Posting",
+      "columns": 4,
+      "fields": [
+        { "name": "paymentTermsCode", "label": "Payment Terms" },
+        { "name": "paymentMethodCode", "label": "Payment Method" },
+        { "name": "dueDate", "label": "Due Date", "type": "date" },
+        { "name": "currencyCode", "label": "Currency" },
+        {
+          "name": "pricesIncludingVAT",
+          "label": "Prices Incl. VAT",
+          "type": "boolean"
+        }
+      ]
+    }
+  ]
+}

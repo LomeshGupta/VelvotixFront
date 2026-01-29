@@ -1,0 +1,124 @@
+{
+  "columns": [
+    { "field": "documentType", "headerName": "Document Type", "width": 150 },
+    { "field": "no", "headerName": "Order No", "width": 160 },
+    { "field": "sellToCustomerNo", "headerName": "Customer No", "width": 180 },
+    {
+      "field": "sellToCustomerName",
+      "headerName": "Customer Name",
+      "width": 200
+    },
+    {
+      "field": "billToCustomerNo",
+      "headerName": "Bill-to Customer No",
+      "width": 180
+    },
+    { "field": "billToName", "headerName": "Bill-to Name", "width": 220 },
+    { "field": "billToCity", "headerName": "Bill-to City", "width": 160 },
+    { "field": "shipToName", "headerName": "Ship-to Name", "width": 220 },
+    { "field": "shipToCity", "headerName": "Ship-to City", "width": 160 },
+    { "field": "orderDate", "headerName": "Order Date", "width": 150 },
+    { "field": "postingDate", "headerName": "Posting Date", "width": 150 },
+    { "field": "shipmentDate", "headerName": "Shipment Date", "width": 150 },
+    { "field": "dueDate", "headerName": "Due Date", "width": 150 },
+    {
+      "field": "amount",
+      "headerName": "Amount",
+      "width": 140,
+      "type": "number"
+    },
+    {
+      "field": "amountIncludingVAT",
+      "headerName": "Amount Incl. VAT",
+      "width": 180,
+      "type": "number"
+    },
+    { "field": "status", "headerName": "Status", "width": 120 },
+    { "field": "currencyCode", "headerName": "Currency", "width": 120 },
+    { "field": "salespersonCode", "headerName": "Salesperson", "width": 140 },
+    {
+      "field": "paymentTermsCode",
+      "headerName": "Payment Terms",
+      "width": 160
+    },
+    {
+      "field": "shippingAgentCode",
+      "headerName": "Shipping Agent",
+      "width": 160
+    },
+    {
+      "field": "shippingAgentServiceCode",
+      "headerName": "Shipping Service",
+      "width": 180
+    },
+    { "field": "sellToContact", "headerName": "Sell-to Contact", "width": 180 },
+    { "field": "sellToEMail", "headerName": "Sell-to Email", "width": 220 },
+    { "field": "sellToPhoneNo", "headerName": "Sell-to Phone", "width": 160 },
+    { "field": "vatRegistrationNo", "headerName": "VAT Reg. No", "width": 160 },
+    {
+      "field": "genBusPostingGroup",
+      "headerName": "Gen. Bus. Posting Group",
+      "width": 200
+    },
+    {
+      "field": "vatBusPostingGroup",
+      "headerName": "VAT Bus. Posting Group",
+      "width": 200
+    },
+    {
+      "field": "shippingAdvice",
+      "headerName": "Shipping Advice",
+      "width": 160
+    },
+    {
+      "field": "requestedDeliveryDate",
+      "headerName": "Requested Delivery Date",
+      "width": 200
+    },
+    {
+      "field": "promisedDeliveryDate",
+      "headerName": "Promised Delivery Date",
+      "width": 200
+    },
+    {
+      "field": "priceCalculationMethod",
+      "headerName": "Price Calculation Method",
+      "width": 220
+    },
+    { "field": "assignedUserID", "headerName": "Assigned User", "width": 160 }
+  ],
+  "columnVisibilityModel": {
+    "no": true,
+    "sellToCustomerNo": true,
+    "sellToCustomerName": true,
+    "postingDate": true,
+    "amount": true,
+    "amountIncludingVAT": true,
+    "documentType": false,
+    "billToCustomerNo": false,
+    "billToName": false,
+    "billToCity": false,
+    "shipToName": false,
+    "shipToCity": false,
+    "orderDate": false,
+    "shipmentDate": false,
+    "dueDate": false,
+    "status": false,
+    "currencyCode": false,
+    "salespersonCode": false,
+    "paymentTermsCode": false,
+    "shippingAgentCode": false,
+    "shippingAgentServiceCode": false,
+    "sellToContact": false,
+    "sellToEMail": false,
+    "sellToPhoneNo": false,
+    "vatRegistrationNo": false,
+    "genBusPostingGroup": false,
+    "vatBusPostingGroup": false,
+    "shippingAdvice": false,
+    "requestedDeliveryDate": false,
+    "promisedDeliveryDate": false,
+    "priceCalculationMethod": false,
+    "assignedUserID": false
+  }
+}

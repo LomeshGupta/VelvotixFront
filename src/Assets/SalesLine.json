@@ -1,0 +1,14 @@
+{
+  "columns": [
+    { "field": "lineNo", "label": "Line No", "readOnly": true, "width": 90 },
+    { "field": "type", "label": "Type" },
+    { "field": "no", "label": "No", "width": 140 },
+    { "field": "description", "label": "Description", "width": 240 },
+    { "field": "quantity", "label": "Quantity", "type": "number" },
+    { "field": "unitOfMeasureCode", "label": "UOM" },
+    { "field": "unitPrice", "label": "Unit Price", "type": "number" },
+    { "field": "vat", "label": "VAT %", "type": "number" },
+    { "field": "lineAmount", "label": "Line Amount", "readOnly": true },
+    { "field": "amountIncludingVAT", "label": "Amount Incl VAT", "readOnly": true }
+  ]
+}
