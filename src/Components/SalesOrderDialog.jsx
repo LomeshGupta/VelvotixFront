@@ -1,67 +1,74 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Box,
   Grid,
   TextField,
   Typography,
   Paper,
-  Button,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   CircularProgress,
+  IconButton,
+  Collapse,
+  Menu,
+  MenuItem,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { DataGrid, useGridApiRef } from "@mui/x-data-grid";
 import { toast } from "react-toastify";
+import axios from "axios";
 import headerConfig from "../Assets/SalesHeader.json";
 import lineConfig from "../Assets/SalesLine.json";
 
-/* ---------------- HELPERS ---------------- */
+/* ================= CONSTANTS ================= */
 
 const todayISO = () => new Date().toISOString().split("T")[0];
+const AUTOSAVE_DELAY = 500;
+const NEW_LINE_ID = "__NEW__";
 
-const DECIMAL_FIELDS = [
+const EDITABLE_LINE_FIELDS = [
+  "itemNo",
+  "description",
   "quantity",
   "unitPrice",
-  "lineAmount",
-  "amount",
-  "amountIncludingVAT",
+  "shipmentDate",
 ];
 
-const parseDecimal = (value) => {
-  if (value === "" || value === null || value === undefined) return null;
-  const n = Number(value);
-  if (Number.isNaN(n)) return null;
-  return Math.round(n * 100) / 100;
-};
+const DECIMAL_FIELDS = ["quantity", "unitPrice"];
+
+/* ================= HELPERS ================= */
 
 const normalizeDecimals = (obj) => {
-  const cleaned = {};
+  const out = {};
   Object.keys(obj || {}).forEach((k) => {
     if (k === "id") return;
-    if (DECIMAL_FIELDS.includes(k)) {
-      const n = Number(obj[k]);
-      if (!Number.isNaN(n)) cleaned[k] = n;
-    } else {
-      cleaned[k] = obj[k];
-    }
+    out[k] = DECIMAL_FIELDS.includes(k) ? Number(obj[k]) : obj[k];
   });
-  return cleaned;
+  return out;
 };
 
 const getChangedFields = (original, current) => {
   const diff = {};
-  Object.keys(current || {}).forEach((key) => {
-    if (key === "id") return;
-    if (current[key] !== original?.[key]) {
-      diff[key] = current[key];
+  Object.keys(current || {}).forEach((k) => {
+    if (k !== "id" && current[k] !== original?.[k]) {
+      diff[k] = current[k];
     }
   });
   return diff;
 };
 
-/* -------------------------------------------------------- */
+const getNextLineNo = (lines = []) => {
+  const max = Math.max(
+    0,
+    ...lines.filter((l) => !l.isNew).map((l) => Number(l.lineNo) || 0),
+  );
+  return max + 10000;
+};
+
+/* ================================================= */
 
 export default function SalesOrderDialog({
   open,
@@ -75,245 +82,424 @@ export default function SalesOrderDialog({
   const [lines, setLines] = useState([]);
   const [originalHeader, setOriginalHeader] = useState({});
   const [originalLines, setOriginalLines] = useState([]);
-  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("Saved");
+  const [expanded, setExpanded] = useState({});
+  const [dirty, setDirty] = useState(false);
+  const apiRef = useGridApiRef();
+  const focusAfterInsertRef = useRef(null);
 
-  // ---------------- INIT (EDIT ONLY + DEFAULT SHIPMENT DATE) ----------------
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [selectedLine, setSelectedLine] = useState(null);
+
+  const saveTimer = useRef(null);
+  const isCellEditing = useRef(false);
+  const latestLinesRef = useRef([]);
+
+  /* ================= BLANK LINE ================= */
+
+  const addBlankLine = (apiLines = []) => {
+    const nextLineNo = getNextLineNo(apiLines);
+
+    return [
+      ...apiLines,
+      {
+        id: NEW_LINE_ID,
+        lineNo: nextLineNo,
+        type: "Item",
+        itemNo: "",
+        description: "",
+        quantity: 0,
+        unitPrice: 0,
+        shipmentDate: header.shipmentDate || todayISO(),
+        isNew: true,
+      },
+    ];
+  };
+
+  /* ================= INIT ================= */
+
   useEffect(() => {
     if (!open || !source?.no) return;
 
-    const headerWithDefaults = {
-      ...source,
-      shipmentDate: source.shipmentDate || todayISO(),
-    };
+    const h = { ...source, shipmentDate: source.shipmentDate || todayISO() };
+    const l = source.lines || [];
 
-    const linesWithDefaults = (source.lines || []).map((l) => ({
-      ...l,
-      shipmentDate: l.shipmentDate || headerWithDefaults.shipmentDate,
-    }));
+    setHeader(h);
+    setLines(addBlankLine(l));
+    setOriginalHeader(h);
+    setOriginalLines(l);
+    setDirty(false);
+    setStatus("Saved");
 
-    setHeader(headerWithDefaults);
-    setLines(linesWithDefaults);
-    setOriginalHeader(headerWithDefaults);
-    setOriginalLines(linesWithDefaults);
-  }, [open]); // source intentionally NOT included
+    const initExpand = {};
+    headerConfig.sections.forEach((s) => (initExpand[s.id] = true));
+    setExpanded(initExpand);
+  }, [open, source?.no]);
 
-  const updateHeader = (name, value) =>
-    setHeader((p) => ({ ...p, [name]: value }));
+  /* ================= KEEP LATEST LINES ================= */
 
-  const addLine = () => {
-    const nextNo = Math.max(0, ...lines.map((l) => l.lineNo || 0)) + 10000;
-    setLines((p) => [
-      ...p,
-      {
-        lineNo: nextNo,
-        type: "Item",
-        no: "",
-        locationCode: "",
-        shipmentDate: header.shipmentDate,
-        description: "",
-        description2: "",
-        unitOfMeasure: "",
-        quantity: 1.0,
-      },
-    ]);
+  useEffect(() => {
+    latestLinesRef.current = lines;
+  }, [lines]);
+
+  /* ================= AUTOSAVE ================= */
+
+  useEffect(() => {
+    if (!dirty || isCellEditing.current) return;
+    clearTimeout(saveTimer.current);
+    setStatus("Not saved");
+    saveTimer.current = setTimeout(autoSave, AUTOSAVE_DELAY);
+  }, [lines, dirty]);
+
+  /* ================= REFRESH ================= */
+
+  const refreshOrderFromApi = async (orderNo) => {
+    const { token } = JSON.parse(localStorage.getItem("userData")) || {};
+    const tenant = process.env.REACT_APP_TENANT_ID;
+    const env = process.env.REACT_APP_BC_ENVIRONMENT;
+    const baseUrl = process.env.REACT_APP_BC_BASE_URL;
+    const companyId = process.env.REACT_APP_BC_COMPANYID;
+
+    const url =
+      `${baseUrl}/v2.0/${tenant}/${env}` +
+      `/api/velvotix/salesstaging/v2.0/companies(${companyId})/salesheaderstagings` +
+      `?$expand=lines&$filter=no eq '${orderNo}'`;
+
+    const res = await axios.get(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const fresh = res.data?.value?.[0];
+    if (!fresh) throw new Error("Refresh failed");
+
+    setHeader(fresh);
+    setLines(addBlankLine(fresh.lines || []));
+    setOriginalHeader(fresh);
+    setOriginalLines(fresh.lines || []);
+    setDirty(false);
+    setStatus("Saved");
+    // setTimeout(() => {
+    //   if (!focusAfterInsertRef.current) return;
+
+    //   const { lineNo, field } = focusAfterInsertRef.current;
+
+    //   apiRef.current.setCellFocus(lineNo, field);
+    //   apiRef.current.startCellEditMode({
+    //     id: lineNo,
+    //     field,
+    //   });
+
+    //   focusAfterInsertRef.current = null;
+    // }, 0);
   };
 
-  // ---------------- SAVE (PATCH ONLY) ----------------
-  const handleSave = async () => {
-    if (!header.no) return;
+  /* ================= HEADER ================= */
 
+  const handleHeaderChange = (field, value) => {
+    setHeader((p) => ({ ...p, [field]: value }));
+    setDirty(true);
+  };
+
+  /* ================= LINE CHANGE ================= */
+
+  const handleLineChange = (row) => {
+    setLines((p) =>
+      p.map((l) =>
+        Number(l.lineNo) === Number(row.lineNo) ? { ...l, ...row } : l,
+      ),
+    );
+    setDirty(true);
+  };
+
+  /* ================= INSERT LINE ================= */
+
+  const insertLine = async (row) => {
     try {
-      setSaving(true);
-      toast.loading("Saving...", { toastId: "save" });
-
       const { token } = JSON.parse(localStorage.getItem("userData")) || {};
       const tenant = process.env.REACT_APP_TENANT_ID;
-      const baseUrl = process.env.REACT_APP_BC_BASE_URL;
       const env = process.env.REACT_APP_BC_ENVIRONMENT;
+      const baseUrl = process.env.REACT_APP_BC_BASE_URL;
       const company = encodeURIComponent(process.env.REACT_APP_BC_COMPANY);
 
-      const headerBaseUrl =
-        `${baseUrl}/v2.0/${tenant}/${env}` +
-        `/ODataV4/Company('${company}')/salesheaderstagings`;
-
-      const lineBaseUrl =
+      const url =
         `${baseUrl}/v2.0/${tenant}/${env}` +
         `/ODataV4/Company('${company}')/lines`;
 
-      const headerGetUrl =
-        `${headerBaseUrl}` +
-        `(documentType='${header.documentType}',no='${header.no}')`;
+      await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          documentType: header.documentType,
+          documentNo: header.no,
+          lineNo: row.lineNo,
+          type: "Item",
+          no: row.no,
+        }),
+      });
 
-      const freshRes = await fetch(headerGetUrl, {
+      toast.success("Line added");
+      await refreshOrderFromApi(header.no);
+    } catch {
+      toast.error("Insert failed");
+    }
+  };
+
+  /* ================= DELETE LINE ================= */
+
+  const deleteLine = async () => {
+    try {
+      const { token } = JSON.parse(localStorage.getItem("userData")) || {};
+      const tenant = process.env.REACT_APP_TENANT_ID;
+      const env = process.env.REACT_APP_BC_ENVIRONMENT;
+      const baseUrl = process.env.REACT_APP_BC_BASE_URL;
+      const company = encodeURIComponent(process.env.REACT_APP_BC_COMPANY);
+
+      const url =
+        `${baseUrl}/v2.0/${tenant}/${env}` +
+        `/ODataV4/Company('${company}')/lines` +
+        `(documentType='${header.documentType}',documentNo='${header.no}',lineNo=${selectedLine.lineNo})`;
+
+      await fetch(url, {
+        method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const freshHeader = await freshRes.json();
 
-      const changedHeader = normalizeDecimals(
+      toast.success("Line deleted");
+      await refreshOrderFromApi(header.no);
+    } catch {
+      toast.error("Delete failed");
+    } finally {
+      setMenuAnchor(null);
+      setSelectedLine(null);
+    }
+  };
+
+  /* ================= SAVE (UNCHANGED CORE LOGIC) ================= */
+
+  const autoSave = async () => {
+    let allOk = true;
+
+    try {
+      setStatus("Saving...");
+
+      const { token } = JSON.parse(localStorage.getItem("userData")) || {};
+      const tenant = process.env.REACT_APP_TENANT_ID;
+      const env = process.env.REACT_APP_BC_ENVIRONMENT;
+      const baseUrl = process.env.REACT_APP_BC_BASE_URL;
+      const company = encodeURIComponent(process.env.REACT_APP_BC_COMPANY);
+
+      /* ---------- HEADER ---------- */
+
+      const headerUrl =
+        `${baseUrl}/v2.0/${tenant}/${env}` +
+        `/ODataV4/Company('${company}')/salesheaderstagings` +
+        `(documentType='${header.documentType}',no='${header.no}')`;
+
+      const freshHeader = await fetch(headerUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json());
+
+      const headerDiff = normalizeDecimals(
         getChangedFields(originalHeader, header),
       );
 
-      if (Object.keys(changedHeader).length > 0) {
-        await fetch(headerGetUrl, {
+      if (Object.keys(headerDiff).length) {
+        const res = await fetch(headerUrl, {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             "If-Match": freshHeader["@odata.etag"],
           },
-          body: JSON.stringify({
-            documentType: freshHeader.documentType,
-            no: freshHeader.no,
-            ...changedHeader,
-          }),
+          body: JSON.stringify(headerDiff),
         });
+        if (!res.ok) allOk = false;
       }
 
-      for (const line of lines) {
-        const originalLine = originalLines.find(
-          (l) => l.lineNo === line.lineNo,
+      /* ---------- LINES ---------- */
+
+      for (const line of latestLinesRef.current) {
+        if (line.isNew) continue; // DO NOT SAVE BLANK LINE
+
+        const orig = originalLines.find(
+          (l) => Number(l.lineNo) === Number(line.lineNo),
+        );
+        if (!orig) continue;
+
+        const diff = normalizeDecimals(
+          Object.fromEntries(
+            Object.entries(getChangedFields(orig, line)).filter(([k]) =>
+              EDITABLE_LINE_FIELDS.includes(k),
+            ),
+          ),
         );
 
-        const changedLine = normalizeDecimals(
-          originalLine
-            ? getChangedFields(originalLine, line)
-            : getChangedFields({}, line),
-        );
+        if (!Object.keys(diff).length) continue;
 
-        if (Object.keys(changedLine).length === 0) continue;
+        const lineUrl =
+          `${baseUrl}/v2.0/${tenant}/${env}` +
+          `/ODataV4/Company('${company}')/lines` +
+          `(documentType='${header.documentType}',documentNo='${header.no}',lineNo=${line.lineNo})`;
 
-        const linePayload = {
-          documentType: header.documentType,
-          documentNo: header.no,
-          lineNo: line.lineNo,
-          ...changedLine,
-        };
+        const freshLine = await fetch(lineUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((r) => r.json());
+        console.log(diff);
+        const res = await fetch(lineUrl, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "If-Match": freshLine["@odata.etag"],
+          },
+          body: JSON.stringify(diff),
+        });
 
-        if (line["@odata.etag"]) {
-          await fetch(
-            `${lineBaseUrl}` +
-              `(documentType='${header.documentType}',documentNo='${header.no}',lineNo=${line.lineNo})`,
-            {
-              method: "PATCH",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-                "If-Match": "*",
-              },
-              body: JSON.stringify(linePayload),
-            },
-          );
-        } else {
-          await fetch(lineBaseUrl, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(linePayload),
-          });
-        }
+        if (!res.ok) allOk = false;
       }
 
-      toast.update("save", {
-        render: "Saved successfully",
-        type: "success",
-        isLoading: false,
-        autoClose: 3000,
-      });
-
-      onClose();
+      if (allOk) {
+        refreshOrderFromApi(header.no);
+        setDirty(false);
+        setStatus("Saved");
+      } else {
+        setStatus("Not saved");
+        toast.error("Some changes could not be saved");
+      }
     } catch (e) {
       console.error(e);
-      toast.update("save", {
-        render: "Save failed",
-        type: "error",
-        isLoading: false,
-        autoClose: 5000,
-      });
-    } finally {
-      setSaving(false);
+      setStatus("Not saved");
+      toast.error("Auto save failed");
     }
   };
 
-  // ---------------- UI ----------------
   if (!source?.no) return null;
 
+  /* ================= UI ================= */
+
+  const actionColumn = {
+    field: "actions",
+    headerName: "",
+    width: 60,
+    sortable: false,
+    renderCell: (params) =>
+      params.row.isNew ? null : (
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            setMenuAnchor(e.currentTarget);
+            setSelectedLine(params.row);
+          }}
+        >
+          <MoreVertIcon />
+        </IconButton>
+      ),
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
-      <DialogTitle>Sales Order {header.no}</DialogTitle>
+    <Dialog open={open} maxWidth="xl" fullWidth onClose={onClose}>
+      <DialogTitle sx={{ display: "flex", alignItems: "center" }}>
+        <IconButton onClick={onClose}>
+          <ArrowBackIcon />
+        </IconButton>
+        <Box sx={{ flexGrow: 1 }}>Sales Order {header.no}</Box>
+        <Typography variant="body2">{status}</Typography>
+      </DialogTitle>
 
       <DialogContent dividers>
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", p: 5 }}>
+          <Box display="flex" justifyContent="center" p={4}>
             <CircularProgress />
           </Box>
         ) : (
           <>
             {headerConfig.sections.map((section) => (
-              <Paper key={section.id} sx={{ p: 2, mb: 3 }} variant="outlined">
-                <Typography variant="h6">{section.title}</Typography>
-                <Grid container spacing={2}>
-                  {section.fields.map((f) => (
-                    <Grid key={f.name} item xs={12} md={12 / section.columns}>
-                      <TextField
-                        fullWidth
-                        label={f.label}
-                        value={header[f.name] || ""}
-                        onChange={(e) => updateHeader(f.name, e.target.value)}
-                      />
+              <Paper key={section.id} sx={{ mb: 2 }} variant="outlined">
+                <Box
+                  sx={{ p: 2, display: "flex", cursor: "pointer" }}
+                  onClick={() =>
+                    setExpanded((p) => ({
+                      ...p,
+                      [section.id]: !p[section.id],
+                    }))
+                  }
+                >
+                  <Typography sx={{ flexGrow: 1 }}>{section.title}</Typography>
+                  <ExpandMoreIcon />
+                </Box>
+
+                <Collapse in={expanded[section.id]}>
+                  <Box sx={{ p: 2 }}>
+                    <Grid container spacing={2}>
+                      {section.fields.map((f) => (
+                        <Grid key={f.name} item xs={12} md={4}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label={f.label}
+                            value={header[f.name] || ""}
+                            onChange={(e) =>
+                              handleHeaderChange(f.name, e.target.value)
+                            }
+                          />
+                        </Grid>
+                      ))}
                     </Grid>
-                  ))}
-                </Grid>
+                  </Box>
+                </Collapse>
               </Paper>
             ))}
 
             <Paper sx={{ p: 2 }} variant="outlined">
               <Typography variant="h6">Sales Lines</Typography>
-              <Button onClick={addLine} sx={{ mb: 2 }} variant="contained">
-                Add Line
-              </Button>
-
-              <div style={{ height: 400 }}>
+              <Box sx={{ height: 420 }}>
                 <DataGrid
-                  rows={lines.map((l, i) => ({ id: i, ...l }))}
-                  columns={lineConfig.columns.map((c) => ({
-                    field: c.field,
-                    headerName: c.label,
-                    width: c.width || 130,
-                    editable: true,
-                    ...(c.type === "decimal" && {
-                      type: "number",
-                      valueParser: (v) => parseDecimal(v),
-                      valueFormatter: (p) =>
-                        p.value !== null && p.value !== undefined
-                          ? Number(p.value).toFixed(2)
-                          : "",
-                    }),
-                  }))}
-                  processRowUpdate={(newRow) => {
-                    const { id, ...cleanRow } = newRow;
-                    setLines((prev) =>
-                      prev.map((l, i) =>
-                        i === id ? { ...l, ...cleanRow } : l,
-                      ),
-                    );
+                  apiRef={apiRef}
+                  getRowId={(row) => row.lineNo}
+                  rows={lines.map((l) => ({ id: l.lineNo, ...l }))}
+                  columns={[
+                    actionColumn,
+                    ...lineConfig.columns.map((c) => ({
+                      field: c.field,
+                      headerName: c.label,
+                      width: c.width || 130,
+                      editable: c.field !== "type",
+                    })),
+                  ]}
+                  onCellEditStart={() => (isCellEditing.current = true)}
+                  onCellEditStop={() => (isCellEditing.current = false)}
+                  processRowUpdate={(newRow, oldRow) => {
+                    if (!newRow["@odata.etag"] && newRow.no) {
+                      focusAfterInsertRef.current = {
+                        lineNo: newRow.lineNo,
+                        field: "description",
+                      };
+
+                      insertLine(newRow);
+                      return newRow;
+                    }
+
+                    handleLineChange(newRow);
                     return newRow;
                   }}
                   experimentalFeatures={{ newEditingApi: true }}
                 />
-              </div>
+              </Box>
             </Paper>
           </>
         )}
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-        <Button variant="contained" onClick={handleSave} disabled={saving}>
-          Save
-        </Button>
-      </DialogActions>
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={() => setMenuAnchor(null)}
+      >
+        <MenuItem onClick={deleteLine}>Delete</MenuItem>
+      </Menu>
     </Dialog>
   );
 }

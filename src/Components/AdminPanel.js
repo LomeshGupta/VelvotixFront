@@ -11,6 +11,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import LayersIcon from "@mui/icons-material/Layers";
 import { AppProvider } from "@toolpad/core/AppProvider";
 import SalesOrdersList from "../Pages/SalesOrdersList";
+import useSessionManager from "./useSessionManager";
 
 import { DashboardLayout, ThemeSwitcher } from "@toolpad/core/DashboardLayout";
 import Chip from "@mui/material/Chip";
@@ -142,6 +143,7 @@ DemoPageContent.propTypes = {
 };
 
 function DashboardLayoutAccount({ window, children }) {
+  useSessionManager();
   const userDataString = localStorage.getItem("userData");
   const userData = userDataString ? JSON.parse(userDataString) : {};
   const router = useDemoRouter("/page");
