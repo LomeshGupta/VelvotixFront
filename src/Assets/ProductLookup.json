@@ -1,0 +1,29 @@
+{
+  "columns": [
+    { "field": "no", "label": "Item No", "readOnly": true, "width": 120 },
+    { "field": "no2", "label": "No. 2", "width": 100 },
+    { "field": "description", "label": "Description", "width": 300 },
+    { "field": "description2", "label": "Description 2", "width": 220 },
+    {
+      "field": "searchDescription",
+      "label": "Search Description",
+      "readOnly": true,
+      "width": 220
+    },
+    { "field": "type", "label": "Type", "width": 120 },
+    { "field": "baseUnitOfMeasure", "label": "Base UOM", "width": 110 },
+    {
+      "field": "priceUnitConversion",
+      "label": "Price Unit Conv.",
+      "type": "number",
+      "width": 140
+    },
+    {
+      "field": "assemblyBOM",
+      "label": "Assembly BOM",
+      "type": "boolean",
+      "width": 130
+    },
+    { "field": "blocked", "label": "Blocked", "type": "boolean", "width": 100 }
+  ]
+}

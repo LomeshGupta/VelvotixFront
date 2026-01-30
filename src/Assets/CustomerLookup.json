@@ -1,0 +1,21 @@
+{
+  "columns": [
+    { "field": "no", "label": "Customer No", "readOnly": true, "width": 140 },
+    { "field": "name", "label": "Name", "width": 220 },
+    {
+      "field": "searchName",
+      "label": "Search Name",
+      "readOnly": true,
+      "width": 220
+    },
+    { "field": "address", "label": "Address", "width": 240 },
+    { "field": "address2", "label": "Address 2", "width": 200 },
+    { "field": "city", "label": "City", "width": 140 },
+    { "field": "postCode", "label": "Post Code", "width": 120 },
+    { "field": "countryRegionCode", "label": "Country", "width": 120 },
+    { "field": "contact", "label": "Contact", "width": 180 },
+    { "field": "phoneNo", "label": "Phone No", "width": 140 },
+    { "field": "email", "label": "E-Mail", "width": 220 },
+    { "field": "blocked", "label": "Blocked", "type": "boolean", "width": 100 }
+  ]
+}

@@ -22,6 +22,8 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import headerConfig from "../Assets/SalesHeader.json";
 import lineConfig from "../Assets/SalesLine.json";
+import CustomerDropdown from "./CustomerDropdown";
+import ProductDropdownCell from "./productDropDown";
 
 /* ================= CONSTANTS ================= */
 
@@ -434,19 +436,42 @@ export default function SalesOrderDialog({
                 <Collapse in={expanded[section.id]}>
                   <Box sx={{ p: 2 }}>
                     <Grid container spacing={2}>
-                      {section.fields.map((f) => (
-                        <Grid key={f.name} item xs={12} md={4}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label={f.label}
-                            value={header[f.name] || ""}
-                            onChange={(e) =>
-                              handleHeaderChange(f.name, e.target.value)
-                            }
-                          />
-                        </Grid>
-                      ))}
+                      {section.fields.map((f) => {
+                        if (f.name === "sellToCustomerNo") {
+                          return (
+                            <Grid key={f.name} item xs={12} md={4}>
+                              <CustomerDropdown
+                                value={header.sellToCustomerNo}
+                                onChange={(cust) => {
+                                  if (!cust) return;
+                                  handleHeaderChange(
+                                    "sellToCustomerNo",
+                                    cust.no,
+                                  );
+                                  handleHeaderChange(
+                                    "sellToCustomerName",
+                                    cust.name,
+                                  );
+                                }}
+                              />
+                            </Grid>
+                          );
+                        }
+
+                        return (
+                          <Grid key={f.name} item xs={12} md={4}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label={f.label}
+                              value={header[f.name] || ""}
+                              onChange={(e) =>
+                                handleHeaderChange(f.name, e.target.value)
+                              }
+                            />
+                          </Grid>
+                        );
+                      })}
                     </Grid>
                   </Box>
                 </Collapse>
